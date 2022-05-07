@@ -20,11 +20,10 @@ k0 = N - 0.5*N;  % discrete instance at which fault occurs
 
 %%% detector = 0 (no detection), 
 % = 1 (deterministic -> limit check), 
-% = 2 (simple prob -> one-sample t-test),
-% = 22 (simple prob -> moving window t-test),
+% = 2 (simple prob -> moving window t-test),
 % = 3 (adv. prob -> CUSUM)
 
-detector = 22;
+detector = 2;
 
 
 %% LIMIT CHECK
@@ -86,28 +85,6 @@ for k=1:N
     end
 
     if detector == 2
-        % adjust estimation of mean and variance at every step
-        if k == 1
-            mu_est(k) = x(k);
-            var_est(k) = x(k)^2;
-        elseif k > 1
-            mu_est(k) = mu_est(k-1) + 1/k*( x(k) - mu_est(k-1) );
-            var_est(k) = ( k - 2 )/( k - 1 )*var_est(k-1) + 1/k*( x(k) - mu_est(k-1) )^2;
-        end
-        sigma_est(k) = sqrt(var_est(k));
-
-        if k < k0
-            t(k) = ( mu_est(k) - mu_0 )/( sigma_est(k) / sqrt(N) );
-        elseif k >= k0
-            t(k) = ( mu_est(k) - mu_1 )/( sigma_est(k) / sqrt(N) );
-        end
-     
-        p_lower(k) = tcdf(t(k), k-1);
-        p_upper(k) = tcdf(t(k), k-1, "upper");
-        % if minimum p-value <= alpha/2 -> change detected
-    end
-
-    if detector == 22
         % start sliding window when enough samples are available
         if k >= N0 + N1
     
@@ -169,8 +146,11 @@ lw = 1.2;
 
 figure
 hold on
-plot(K, x, "LineWidth", lw)
-title("Samples from changing Gaussian distribution k0=50")
+plot(K(1:k0-1), x(1:k0-1), "LineWidth", lw)
+plot(K(k0:end), x(k0:end), "LineWidth", lw)
+title("Samples from changing Gaussian distribution")
+xlabel("k")
+ylabel("x")
 if detector == 1
     yline(x_upper, 'k', "LineWidth", lw-0.2)
     yline(x_lower, 'k', "LineWidth", lw-0.2)
@@ -180,10 +160,6 @@ end
 grid
 
 if detector == 2
-    plot(K, mu_est, "LineWidth", lw)
-    plot(K, sigma_est, "LineWidth", lw)
-    legend("samples", "\mu est", "\sigma est", "location", "northwest")
-
     figure
     hold on
     plot(K, p_upper, "LineWidth", lw)
@@ -191,17 +167,8 @@ if detector == 2
     yline(alpha/2, 'k', "LineWidth", lw-0.2)
     legend("upper p-value", "lower p-value", "\alpha/2")
     title("p-value fault detection")
-    grid
-end
-
-if detector == 22
-    figure
-    hold on
-    plot(K, p_upper, "LineWidth", lw)
-    plot(K, p_lower, "LineWidth", lw)
-    yline(alpha/2, 'k', "LineWidth", lw-0.2)
-    legend("upper p-value", "lower p-value", "\alpha/2")
-    title("p-value fault detection")
+    xlabel("k")
+    ylabel("p-value")
     grid
 end
 
@@ -213,5 +180,7 @@ if detector == 3
     yline(h, 'k', "LineWidth", lw-0.2)
     legend("actual \mu_1", "tuned \mu_1", "fault threshold", "location", "northwest")
     title("CUSUM fault detection")
+    xlabel("k")
+    ylabel("g")
     grid
 end
